@@ -150,15 +150,15 @@ body { background:#0a0f1a; color:#e2e8f0; font-family:'SF Mono','Fira Code','Con
 
 <!-- Key Metrics -->
 <div class="metrics-row">
-  <div class="metric-card excellent">
+  <div class="metric-card good">
     <div class="label">VO2max</div>
     <div class="value">42.4<span class="unit">mL/kg/min</span></div>
     <div class="detail">131% of predicted (32.6) &bull; 12.1 METs</div>
     <div class="percentile-bar">
-      <div class="percentile-fill" style="width:78%; background:linear-gradient(90deg,#f87171,#fbbf24,#34d399);"></div>
-      <div class="percentile-marker" style="left:78%"></div>
+      <div class="percentile-fill" style="width:73%; background:linear-gradient(90deg,#f87171,#fbbf24,#34d399);"></div>
+      <div class="percentile-marker" style="left:73%"></div>
     </div>
-    <div class="percentile-label">~80th percentile for age/sex</div>
+    <div class="percentile-label">~70-75th percentile &bull; ACSM "Good" (M 40-49)</div>
   </div>
   <div class="metric-card excellent">
     <div class="label">VE/VCO2 Slope</div>
@@ -173,12 +173,12 @@ body { background:#0a0f1a; color:#e2e8f0; font-family:'SF Mono','Fira Code','Con
   <div class="metric-card excellent">
     <div class="label">HR Recovery (1 min)</div>
     <div class="value">24<span class="unit">bpm</span></div>
-    <div class="detail">Excellent &gt;18 &bull; Healthy autonomic function</div>
+    <div class="detail">Normal &gt;12 (Cole 1999) &bull; Healthy autonomic function</div>
     <div class="percentile-bar">
       <div class="percentile-fill" style="width:80%; background:linear-gradient(90deg,#f87171,#fbbf24,#34d399);"></div>
       <div class="percentile-marker" style="left:80%"></div>
     </div>
-    <div class="percentile-label">Abnormal &lt;12 bpm</div>
+    <div class="percentile-label">Abnormal &lt;12 bpm (active recovery)</div>
   </div>
   <div class="metric-card excellent">
     <div class="label">Peak O2 Pulse</div>
@@ -209,9 +209,9 @@ body { background:#0a0f1a; color:#e2e8f0; font-family:'SF Mono','Fira Code','Con
     <canvas id="mainChart"></canvas>
   </div>
   <div class="insight">
-    <strong>VO2 Plateau:</strong> Breaths 70–78 show VO2 locked at 4,100–4,156 mL/min despite grade increasing from 10% to 12.5%.
-    This is a textbook plateau — definitive proof of true VO2max. The RER nadir at breath 16 (0.69) marks VT1,
-    while VE/VCO2 nadir at breath 68 (27.5) marks VT2.
+    <strong>VO2 Plateau:</strong> Breaths 70–78 show VO2 locked at 4,100–4,156 mL/min despite grade increasing from 10% to 12.5% —
+    textbook plateau confirming true VO2max. 42.4 mL/kg/min = ACSM "Good" category (~70-75th percentile, M 40-49).
+    RER nadir at breath 16 (0.69) marks VT1; VE/VCO2 nadir at breath 68 (27.5) marks VT2.
   </div>
 </div>
 
@@ -223,8 +223,8 @@ body { background:#0a0f1a; color:#e2e8f0; font-family:'SF Mono','Fira Code','Con
       <canvas id="substrateChart"></canvas>
     </div>
     <div class="insight">
-      <strong>FATmax:</strong> Peak fat oxidation ~0.9 g/min at HR 110–126.
-      <strong>Crossover:</strong> Fat → carb dominance at RER 0.84 (HR ~126).
+      <strong>FATmax:</strong> Peak fat oxidation ~0.9 g/min at HR 110–126 (P&eacute;ronnet &amp; Massicotte 1991 equations).
+      <strong>Crossover:</strong> Fat &rarr; carb dominance at RER 0.84 (HR ~126).
       Above HR 157, substrate is 100% carbohydrate.
     </div>
   </div>
@@ -248,9 +248,9 @@ body { background:#0a0f1a; color:#e2e8f0; font-family:'SF Mono','Fira Code','Con
       <canvas id="vevco2Chart"></canvas>
     </div>
     <div class="insight">
-      <strong>VE/VCO2 slope of 26.7</strong> — one of the strongest prognostic markers in cardiology.
-      Normal &lt;30, concerning &gt;35, severe &gt;45. Indicates excellent V/Q matching with no evidence of
-      increased dead space ventilation.
+      <strong>VE/VCO2 slope of 26.7</strong> — one of the strongest prognostic markers in cardiology (Arena et al. 2004).
+      Class I &le;29.9, Class II 30–35.9, Class III 36–44.9, Class IV &ge;45. Indicates excellent V/Q matching
+      with no evidence of increased dead space ventilation.
     </div>
   </div>
 
@@ -274,9 +274,9 @@ body { background:#0a0f1a; color:#e2e8f0; font-family:'SF Mono','Fira Code','Con
       <canvas id="hrRecoveryChart"></canvas>
     </div>
     <div class="insight">
-      <strong>1-min HRR: 24 bpm</strong> (Excellent &gt;18, Normal &gt;12, Abnormal &lt;12).
+      <strong>1-min HRR: 24 bpm</strong> — well above the 12 bpm abnormal threshold (Cole et al. 1999, NEJM, active recovery protocol).
       <strong>2-min HRR: 44 bpm.</strong> Fast parasympathetic reactivation indicates healthy autonomic nervous system.
-      Abnormal HRR is an independent predictor of all-cause mortality.
+      Abnormal HRR (&lt;12 bpm) is an independent predictor of all-cause mortality (RR ~2.0).
     </div>
   </div>
 

@@ -111,15 +111,6 @@ body { background:#0a0f1a; color:#e2e8f0; font-family:'SF Mono','Fira Code','Con
   <span><strong>Protocol:</strong> Modified Balke (5 MPH, +2.5% / 2 min)</span>
 </div>
 
-<!-- Data Density -->
-<div class="section">
-  <div class="data-density">
-    <div class="big-number">93 breaths &times; 20 variables = <span style="color:#34d399">1,860</span> data points</div>
-    <div class="caption">Every dot below is a measured physiological data point from a single 14-minute test</div>
-    <div class="data-points" id="dataDots"></div>
-  </div>
-</div>
-
 <!-- Comparison: What you get today vs what's actually there -->
 <div class="comparison">
   <div class="comparison-side old">
@@ -450,22 +441,6 @@ const vtAnnotations = {
   vt2: { type:'line', xMin:labels.indexOf(fmt(VT2_T)), xMax:labels.indexOf(fmt(VT2_T)), borderColor:'rgba(248,113,113,0.6)', borderWidth:2, borderDash:[6,4], label:{display:true,content:'VT2',position:'start',backgroundColor:'rgba(248,113,113,0.15)',color:'#f87171',font:{size:10}} },
   rec: { type:'line', xMin:exerciseEnd, xMax:exerciseEnd, borderColor:'rgba(100,116,139,0.4)', borderWidth:1, borderDash:[4,4], label:{display:true,content:'Recovery',position:'start',backgroundColor:'rgba(100,116,139,0.15)',color:'#64748b',font:{size:10}} },
 };
-
-// ============================================================
-// DATA DOTS
-// ============================================================
-const dotsEl = document.getElementById('dataDots');
-const colors = ['#60a5fa','#34d399','#f59e0b','#f87171','#a78bfa','#06b6d4','#ec4899','#84cc16','#fb923c','#6366f1',
-                '#60a5fa','#34d399','#f59e0b','#f87171','#a78bfa','#06b6d4','#ec4899','#84cc16','#fb923c','#6366f1'];
-for (let i = 0; i < 93; i++) {
-  for (let j = 0; j < 20; j++) {
-    const dot = document.createElement('div');
-    dot.className = 'dot';
-    dot.style.backgroundColor = colors[j];
-    dot.style.opacity = 0.6 + (i/93)*0.4;
-    dotsEl.appendChild(dot);
-  }
-}
 
 // ============================================================
 // MAIN CHART

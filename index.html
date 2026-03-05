@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MGC AI — CPET Breath-by-Breath Analysis</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0a0f1a; color:#e2e8f0; font-family:'SF Mono','Fira Code','Consolas',monospace; }
+.container { max-width:1400px; margin:0 auto; padding:24px; }
+
+/* Header */
+.header { display:flex; align-items:baseline; gap:16px; margin-bottom:8px; }
+.header h1 { font-size:28px; font-weight:700; color:#60a5fa; letter-spacing:2px; }
+.header .subtitle { font-size:14px; color:#64748b; }
+.patient-bar { display:flex; gap:32px; padding:12px 0; border-bottom:1px solid #1e293b; margin-bottom:24px; font-size:13px; color:#94a3b8; }
+.patient-bar strong { color:#e2e8f0; }
+
+/* Metric Cards */
+.metrics-row { display:grid; grid-template-columns:repeat(5,1fr); gap:16px; margin-bottom:24px; }
+.metric-card { background:#111827; border:1px solid #1e293b; border-radius:12px; padding:20px; position:relative; overflow:hidden; }
+.metric-card .label { font-size:11px; text-transform:uppercase; letter-spacing:1.5px; color:#64748b; margin-bottom:8px; }
+.metric-card .value { font-size:32px; font-weight:700; line-height:1; }
+.metric-card .unit { font-size:13px; color:#64748b; margin-left:4px; }
+.metric-card .detail { font-size:12px; color:#94a3b8; margin-top:8px; }
+.metric-card .percentile-bar { margin-top:12px; height:6px; background:#1e293b; border-radius:3px; position:relative; }
+.metric-card .percentile-fill { height:100%; border-radius:3px; }
+.metric-card .percentile-marker { position:absolute; top:-4px; width:3px; height:14px; background:#fff; border-radius:1px; transform:translateX(-50%); }
+.metric-card .percentile-label { font-size:10px; color:#94a3b8; margin-top:4px; text-align:right; }
+.metric-card.excellent .value { color:#34d399; }
+.metric-card.good .value { color:#60a5fa; }
+.metric-card.normal .value { color:#fbbf24; }
+.metric-card.concern .value { color:#f87171; }
+
+/* Chart sections */
+.section { background:#111827; border:1px solid #1e293b; border-radius:12px; padding:24px; margin-bottom:24px; }
+.section h2 { font-size:14px; text-transform:uppercase; letter-spacing:2px; color:#60a5fa; margin-bottom:16px; }
+.section .insight { font-size:12px; color:#94a3b8; margin-top:12px; padding:12px; background:#0a0f1a; border-radius:8px; border-left:3px solid #60a5fa; }
+
+.chart-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:24px; }
+.chart-container { position:relative; height:300px; }
+.chart-container.tall { height:400px; }
+
+/* What Ascent Gives vs What's Actually There */
+.comparison { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:24px; }
+.comparison-side { background:#111827; border:1px solid #1e293b; border-radius:12px; padding:24px; }
+.comparison-side.old { border-color:#374151; }
+.comparison-side.new { border-color:#60a5fa; }
+.comparison-side h3 { font-size:13px; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:16px; }
+.comparison-side.old h3 { color:#6b7280; }
+.comparison-side.new h3 { color:#60a5fa; }
+.stat-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #1e293b; font-size:13px; }
+.stat-row:last-child { border:none; }
+.stat-row .stat-label { color:#94a3b8; }
+.stat-row .stat-value { color:#e2e8f0; font-weight:600; }
+
+/* Zones */
+.zones { display:flex; flex-direction:column; gap:4px; margin-top:12px; }
+.zone-bar { display:flex; align-items:center; gap:12px; padding:10px 16px; border-radius:8px; font-size:13px; }
+.zone-bar .zone-name { width:140px; font-weight:600; }
+.zone-bar .zone-hr { width:120px; color:#94a3b8; }
+.zone-bar .zone-desc { color:#94a3b8; flex:1; }
+.zone-bar.z1 { background:rgba(96,165,250,0.1); color:#93c5fd; }
+.zone-bar.z2 { background:rgba(52,211,153,0.1); color:#6ee7b7; }
+.zone-bar.z3 { background:rgba(251,191,36,0.1); color:#fcd34d; }
+.zone-bar.z4 { background:rgba(251,146,60,0.1); color:#fdba74; }
+.zone-bar.z5 { background:rgba(248,113,113,0.1); color:#fca5a5; }
+
+/* Data density indicator */
+.data-density { text-align:center; padding:20px; margin-bottom:24px; }
+.data-density .big-number { font-size:64px; font-weight:700; color:#60a5fa; }
+.data-density .caption { font-size:14px; color:#64748b; margin-top:4px; }
+.data-points { display:flex; flex-wrap:wrap; gap:2px; justify-content:center; max-width:800px; margin:16px auto 0; }
+.data-points .dot { width:6px; height:6px; border-radius:50%; }
+
+/* Breath explorer */
+.breath-explorer { margin-top:16px; font-size:12px; }
+.breath-explorer table { width:100%; border-collapse:collapse; }
+.breath-explorer th { text-align:right; padding:4px 8px; color:#64748b; font-weight:500; border-bottom:1px solid #1e293b; position:sticky; top:0; background:#111827; }
+.breath-explorer td { text-align:right; padding:3px 8px; border-bottom:1px solid rgba(30,41,59,0.5); }
+.breath-explorer tr:hover td { background:rgba(96,165,250,0.05); }
+.breath-explorer .phase-warmup { border-left:3px solid #60a5fa; }
+.breath-explorer .phase-exercise { border-left:3px solid #34d399; }
+.breath-explorer .phase-peak { border-left:3px solid #f59e0b; }
+.breath-explorer .phase-recovery { border-left:3px solid #f87171; }
+.scroll-table { max-height:400px; overflow-y:auto; border:1px solid #1e293b; border-radius:8px; }
+
+@media (max-width:900px) {
+  .metrics-row { grid-template-columns:repeat(2,1fr); }
+  .chart-grid, .comparison { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<div class="header">
+  <h1>MGC AI</h1>
+  <span class="subtitle">Comprehensive Breath-by-Breath CPET Analysis</span>
+</div>
+<div class="patient-bar">
+  <span><strong>Patient:</strong> Patient A</span>
+  <span><strong>Age:</strong> 47 M</span>
+  <span><strong>Height:</strong> 72" (183 cm)</span>
+  <span><strong>Weight:</strong> 216 lbs (98 kg)</span>
+  <span><strong>BMI:</strong> 29.3</span>
+  <span><strong>Test Date:</strong> March 5, 2026</span>
+  <span><strong>Protocol:</strong> Modified Balke (5 MPH, +2.5% / 2 min)</span>
+</div>
+
+<!-- Data Density -->
+<div class="section">
+  <div class="data-density">
+    <div class="big-number">93 breaths &times; 20 variables = <span style="color:#34d399">1,860</span> data points</div>
+    <div class="caption">Every dot below is a measured physiological data point from a single 14-minute test</div>
+    <div class="data-points" id="dataDots"></div>
+  </div>
+</div>
+
+<!-- Comparison: What you get today vs what's actually there -->
+<div class="comparison">
+  <div class="comparison-side old">
+    <h3>Standard Ascent Report</h3>
+    <div class="stat-row"><span class="stat-label">VO2max</span><span class="stat-value">42.4 mL/kg/min</span></div>
+    <div class="stat-row"><span class="stat-label">VT1</span><span class="stat-value">Breath 18 (3:30)</span></div>
+    <div class="stat-row"><span class="stat-label">VT2</span><span class="stat-value">Breath 68 (11:50)</span></div>
+    <div class="stat-row"><span class="stat-label">Peak HR</span><span class="stat-value">162 bpm</span></div>
+    <div class="stat-row"><span class="stat-label">Peak RER</span><span class="stat-value">1.15</span></div>
+    <div style="margin-top:16px; text-align:center; color:#4b5563; font-size:13px;">
+      5 numbers. That's it.<br>1,855 data points discarded.
+    </div>
+  </div>
+  <div class="comparison-side new">
+    <h3>AI-Powered Analysis</h3>
+    <div class="stat-row"><span class="stat-label">VO2max + Validation</span><span class="stat-value" style="color:#34d399">Plateau confirmed, all criteria met</span></div>
+    <div class="stat-row"><span class="stat-label">VT1 (3 methods)</span><span class="stat-value" style="color:#60a5fa">RER nadir / VE/VO2 / V-slope compared</span></div>
+    <div class="stat-row"><span class="stat-label">Substrate Utilization</span><span class="stat-value" style="color:#f59e0b">Full fat/carb curve + FATmax + crossover</span></div>
+    <div class="stat-row"><span class="stat-label">Cardiac Function</span><span class="stat-value" style="color:#f87171">O2 pulse trajectory + SV estimate</span></div>
+    <div class="stat-row"><span class="stat-label">Ventilatory Efficiency</span><span class="stat-value" style="color:#a78bfa">VE/VCO2 slope + breathing strategy</span></div>
+    <div class="stat-row"><span class="stat-label">Autonomic Function</span><span class="stat-value" style="color:#34d399">HR recovery kinetics</span></div>
+    <div class="stat-row"><span class="stat-label">O2 Kinetics</span><span class="stat-value" style="color:#60a5fa">On-kinetics &tau; + deficit quantification</span></div>
+    <div class="stat-row"><span class="stat-label">Running Economy</span><span class="stat-value" style="color:#fbbf24">VO2/workload at every intensity</span></div>
+    <div class="stat-row"><span class="stat-label">Recovery Kinetics</span><span class="stat-value" style="color:#f87171">EPOC + CO2 washout analysis</span></div>
+    <div class="stat-row"><span class="stat-label">Training Zones</span><span class="stat-value" style="color:#34d399">5 zones from actual physiology</span></div>
+  </div>
+</div>
+
+<!-- Key Metrics -->
+<div class="metrics-row">
+  <div class="metric-card excellent">
+    <div class="label">VO2max</div>
+    <div class="value">42.4<span class="unit">mL/kg/min</span></div>
+    <div class="detail">131% of predicted (32.6) &bull; 12.1 METs</div>
+    <div class="percentile-bar">
+      <div class="percentile-fill" style="width:78%; background:linear-gradient(90deg,#f87171,#fbbf24,#34d399);"></div>
+      <div class="percentile-marker" style="left:78%"></div>
+    </div>
+    <div class="percentile-label">~80th percentile for age/sex</div>
+  </div>
+  <div class="metric-card excellent">
+    <div class="label">VE/VCO2 Slope</div>
+    <div class="value">26.7</div>
+    <div class="detail">Normal &lt;30 &bull; Excellent ventilatory efficiency</div>
+    <div class="percentile-bar">
+      <div class="percentile-fill" style="width:100%; background:linear-gradient(90deg,#34d399,#fbbf24,#f87171);"></div>
+      <div class="percentile-marker" style="left:22%"></div>
+    </div>
+    <div class="percentile-label">Lower is better</div>
+  </div>
+  <div class="metric-card excellent">
+    <div class="label">HR Recovery (1 min)</div>
+    <div class="value">24<span class="unit">bpm</span></div>
+    <div class="detail">Excellent &gt;18 &bull; Healthy autonomic function</div>
+    <div class="percentile-bar">
+      <div class="percentile-fill" style="width:80%; background:linear-gradient(90deg,#f87171,#fbbf24,#34d399);"></div>
+      <div class="percentile-marker" style="left:80%"></div>
+    </div>
+    <div class="percentile-label">Abnormal &lt;12 bpm</div>
+  </div>
+  <div class="metric-card excellent">
+    <div class="label">Peak O2 Pulse</div>
+    <div class="value">26.3<span class="unit">mL/beat</span></div>
+    <div class="detail">Continuous rise &bull; No cardiac limitation</div>
+    <div class="percentile-bar">
+      <div class="percentile-fill" style="width:85%; background:linear-gradient(90deg,#f87171,#fbbf24,#34d399);"></div>
+      <div class="percentile-marker" style="left:85%"></div>
+    </div>
+    <div class="percentile-label">Stroke volume proxy</div>
+  </div>
+  <div class="metric-card good">
+    <div class="label">Running Economy</div>
+    <div class="value">95<span class="unit">%</span></div>
+    <div class="detail">Avg across all stages &bull; &lt;95% = efficient</div>
+    <div class="percentile-bar">
+      <div class="percentile-fill" style="width:100%; background:linear-gradient(90deg,#34d399,#fbbf24,#f87171);"></div>
+      <div class="percentile-marker" style="left:45%"></div>
+    </div>
+    <div class="percentile-label">% of predicted VO2 for workload</div>
+  </div>
+</div>
+
+<!-- Main Chart: VO2, HR, RER over time -->
+<div class="section">
+  <h2>Primary Variables Over Time</h2>
+  <div class="chart-container tall">
+    <canvas id="mainChart"></canvas>
+  </div>
+  <div class="insight">
+    <strong>VO2 Plateau:</strong> Breaths 70–78 show VO2 locked at 4,100–4,156 mL/min despite grade increasing from 10% to 12.5%.
+    This is a textbook plateau — definitive proof of true VO2max. The RER nadir at breath 16 (0.69) marks VT1,
+    while VE/VCO2 nadir at breath 68 (27.5) marks VT2.
+  </div>
+</div>
+
+<!-- Substrate Utilization -->
+<div class="chart-grid">
+  <div class="section">
+    <h2>Substrate Utilization — Fat vs Carbohydrate</h2>
+    <div class="chart-container">
+      <canvas id="substrateChart"></canvas>
+    </div>
+    <div class="insight">
+      <strong>FATmax:</strong> Peak fat oxidation ~0.9 g/min at HR 110–126.
+      <strong>Crossover:</strong> Fat → carb dominance at RER 0.84 (HR ~126).
+      Above HR 157, substrate is 100% carbohydrate.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>O2 Pulse — Cardiac Function Proxy</h2>
+    <div class="chart-container">
+      <canvas id="o2pulseChart"></canvas>
+    </div>
+    <div class="insight">
+      <strong>Key finding:</strong> O2 Pulse (VO2/HR = SV &times; a-vO2 diff) rose continuously from 13.6 to 26.3 mL/beat.
+      No plateau or decline at peak — rules out stroke volume limitation and suggests excellent cardiac reserve.
+    </div>
+  </div>
+</div>
+
+<div class="chart-grid">
+  <div class="section">
+    <h2>Ventilatory Efficiency — VE vs VCO2</h2>
+    <div class="chart-container">
+      <canvas id="vevco2Chart"></canvas>
+    </div>
+    <div class="insight">
+      <strong>VE/VCO2 slope of 26.7</strong> — one of the strongest prognostic markers in cardiology.
+      Normal &lt;30, concerning &gt;35, severe &gt;45. Indicates excellent V/Q matching with no evidence of
+      increased dead space ventilation.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Breathing Strategy — Tidal Volume vs Rate</h2>
+    <div class="chart-container">
+      <canvas id="breathingChart"></canvas>
+    </div>
+    <div class="insight">
+      <strong>Vt-dominant strategy:</strong> Tidal volume increased from 1,000 to 3,800 mL before respiratory rate
+      accelerated (21→39 br/min). The late Vt→RR crossover indicates substantial ventilatory reserve.
+    </div>
+  </div>
+</div>
+
+<!-- HR Recovery -->
+<div class="chart-grid">
+  <div class="section">
+    <h2>Heart Rate Recovery — Autonomic Function</h2>
+    <div class="chart-container">
+      <canvas id="hrRecoveryChart"></canvas>
+    </div>
+    <div class="insight">
+      <strong>1-min HRR: 24 bpm</strong> (Excellent &gt;18, Normal &gt;12, Abnormal &lt;12).
+      <strong>2-min HRR: 44 bpm.</strong> Fast parasympathetic reactivation indicates healthy autonomic nervous system.
+      Abnormal HRR is an independent predictor of all-cause mortality.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Gas Exchange — PetO2 &amp; PetCO2</h2>
+    <div class="chart-container">
+      <canvas id="petChart"></canvas>
+    </div>
+    <div class="insight">
+      <strong>PetCO2 rose steadily to 43.8 mmHg</strong> at VT2 then declined as hyperventilation blew off CO2.
+      The PetO2/PetCO2 crossover pattern is a classic marker of the respiratory compensation point.
+      Healthy pattern with no evidence of V/Q mismatch.
+    </div>
+  </div>
+</div>
+
+<!-- Training Zones -->
+<div class="section">
+  <h2>Physiologically-Derived Training Zones</h2>
+  <p style="font-size:12px; color:#64748b; margin-bottom:12px;">Based on actual ventilatory thresholds, not generic age-based formulas</p>
+  <div class="zones">
+    <div class="zone-bar z1">
+      <span class="zone-name">Zone 1 — Recovery</span>
+      <span class="zone-hr">&lt; 106 bpm</span>
+      <span class="zone-desc">Active recovery, warm-up &bull; &gt;90% fat oxidation</span>
+    </div>
+    <div class="zone-bar z2">
+      <span class="zone-name">Zone 2 — Aerobic</span>
+      <span class="zone-hr">106 – 131 bpm</span>
+      <span class="zone-desc">Endurance base, mitochondrial density &bull; 60–80% fat</span>
+    </div>
+    <div class="zone-bar z3">
+      <span class="zone-name">Zone 3 — Tempo</span>
+      <span class="zone-hr">131 – 156 bpm</span>
+      <span class="zone-desc">Lactate clearance, sustained performance &bull; 30–50% fat</span>
+    </div>
+    <div class="zone-bar z4">
+      <span class="zone-name">Zone 4 — Threshold</span>
+      <span class="zone-hr">156 – 159 bpm</span>
+      <span class="zone-desc">Lactate tolerance, race pace &bull; &gt;90% carbohydrate</span>
+    </div>
+    <div class="zone-bar z5">
+      <span class="zone-name">Zone 5 — VO2max</span>
+      <span class="zone-hr">159 – 162 bpm</span>
+      <span class="zone-desc">Peak aerobic power, cardiac output &bull; 100% carbohydrate</span>
+    </div>
+  </div>
+</div>
+
+<!-- Full BxB Table -->
+<div class="section">
+  <h2>Complete Breath-by-Breath Data</h2>
+  <p style="font-size:12px; color:#64748b; margin-bottom:12px;">93 breaths &times; 20 variables — every row is a 30-second rolling average of real respiratory gas exchange</p>
+  <div class="scroll-table">
+    <table class="breath-explorer" id="bxbTable">
+      <thead>
+        <tr>
+          <th>#</th><th>Time</th><th>Phase</th><th>VO2</th><th>V/kg</th><th>VCO2</th>
+          <th>RER</th><th>HR</th><th>VE</th><th>VE/O2</th><th>VE/CO2</th>
+          <th>PetO2</th><th>PetCO2</th><th>O2P</th><th>Vt</th><th>RR</th>
+          <th>Fat g/m</th><th>CHO g/m</th><th>Speed</th><th>Grade</th><th>METs</th>
+        </tr>
+      </thead>
+      <tbody id="bxbBody"></tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<script>
+// ============================================================
+// BREATH-BY-BREATH DATA
+// ============================================================
+const D = [{"t":30,"ex":28.6,"vo2":718,"vo2kg":7.3,"vco2":582,"rer":0.81,"hr":53,"ve":24.7,"vevo2":34.3,"vevco2":42.4,"peto2":106,"petco2":33.1,"o2p":13.6,"spd":2.0,"grd":0.0,"mets":2.1,"vt":1002,"rr":25,"fat":0.23,"cho":0.35},{"t":40,"ex":38.6,"vo2":713,"vo2kg":7.3,"vco2":562,"rer":0.79,"hr":55,"ve":23.3,"vevo2":32.7,"vevco2":41.5,"peto2":104,"petco2":33.8,"o2p":13.0,"spd":2.0,"grd":0.0,"mets":2.1,"vt":993,"rr":23,"fat":0.25,"cho":0.27},{"t":50,"ex":48.6,"vo2":812,"vo2kg":8.3,"vco2":610,"rer":0.75,"hr":58,"ve":24.4,"vevo2":30.0,"vevco2":40.0,"peto2":102,"petco2":34.5,"o2p":13.9,"spd":2.0,"grd":0.0,"mets":2.4,"vt":1082,"rr":23,"fat":0.34,"cho":0.18},{"t":60,"ex":58.6,"vo2":858,"vo2kg":8.8,"vco2":641,"rer":0.75,"hr":61,"ve":24.8,"vevo2":28.9,"vevco2":38.6,"peto2":101,"petco2":34.6,"o2p":14.1,"spd":2.0,"grd":0.0,"mets":2.5,"vt":1179,"rr":21,"fat":0.36,"cho":0.17},{"t":70,"ex":68.6,"vo2":963,"vo2kg":9.8,"vco2":753,"rer":0.78,"hr":63,"ve":28.7,"vevo2":29.8,"vevco2":38.1,"peto2":103,"petco2":34.2,"o2p":15.4,"spd":2.0,"grd":0.0,"mets":2.8,"vt":1395,"rr":21,"fat":0.35,"cho":0.35},{"t":80,"ex":78.6,"vo2":885,"vo2kg":9.0,"vco2":716,"rer":0.81,"hr":64,"ve":27.7,"vevo2":31.3,"vevco2":38.7,"peto2":104,"petco2":34.1,"o2p":13.7,"spd":2.0,"grd":0.0,"mets":2.6,"vt":1382,"rr":20,"fat":0.28,"cho":0.43},{"t":90,"ex":88.6,"vo2":878,"vo2kg":9.0,"vco2":698,"rer":0.79,"hr":65,"ve":26.9,"vevo2":30.6,"vevco2":38.6,"peto2":102,"petco2":35.1,"o2p":13.5,"spd":2.0,"grd":0.0,"mets":2.6,"vt":1374,"rr":20,"fat":0.3,"cho":0.37},{"t":100,"ex":98.6,"vo2":861,"vo2kg":8.8,"vco2":649,"rer":0.75,"hr":66,"ve":25.6,"vevo2":29.7,"vevco2":39.4,"peto2":100,"petco2":35.3,"o2p":13.1,"spd":2.0,"grd":0.0,"mets":2.5,"vt":1200,"rr":21,"fat":0.36,"cho":0.2},{"t":110,"ex":108.6,"vo2":930,"vo2kg":9.5,"vco2":687,"rer":0.74,"hr":65,"ve":26.5,"vevo2":28.4,"vevco2":38.5,"peto2":99,"petco2":35.7,"o2p":14.3,"spd":2.0,"grd":0.0,"mets":2.7,"vt":1249,"rr":21,"fat":0.41,"cho":0.15},{"t":120,"ex":118.6,"vo2":973,"vo2kg":9.9,"vco2":725,"rer":0.74,"hr":65,"ve":28.1,"vevo2":28.9,"vevco2":38.7,"peto2":100,"petco2":35.5,"o2p":15.0,"spd":2.0,"grd":0.0,"mets":2.8,"vt":1249,"rr":22,"fat":0.42,"cho":0.18},{"t":130,"ex":128.6,"vo2":971,"vo2kg":9.9,"vco2":741,"rer":0.76,"hr":65,"ve":28.4,"vevo2":29.3,"vevco2":38.4,"peto2":101,"petco2":35.4,"o2p":14.9,"spd":5.0,"grd":0.0,"mets":2.8,"vt":1336,"rr":21,"fat":0.39,"cho":0.26},{"t":140,"ex":138.6,"vo2":1124,"vo2kg":11.5,"vco2":859,"rer":0.76,"hr":71,"ve":31.8,"vevo2":28.3,"vevco2":37.1,"peto2":101,"petco2":35.6,"o2p":15.9,"spd":5.0,"grd":0.0,"mets":3.3,"vt":1444,"rr":22,"fat":0.44,"cho":0.31},{"t":150,"ex":148.6,"vo2":1283,"vo2kg":13.1,"vco2":984,"rer":0.77,"hr":79,"ve":35.8,"vevo2":27.9,"vevco2":36.4,"peto2":101,"petco2":35.6,"o2p":16.3,"spd":5.0,"grd":0.0,"mets":3.7,"vt":1615,"rr":22,"fat":0.5,"cho":0.37},{"t":160,"ex":158.6,"vo2":1590,"vo2kg":16.2,"vco2":1199,"rer":0.75,"hr":90,"ve":40.3,"vevo2":25.4,"vevco2":33.6,"peto2":98,"petco2":36.6,"o2p":17.6,"spd":5.0,"grd":0.0,"mets":4.6,"vt":1935,"rr":21,"fat":0.66,"cho":0.37},{"t":170,"ex":168.6,"vo2":1822,"vo2kg":18.6,"vco2":1308,"rer":0.72,"hr":100,"ve":42.1,"vevo2":23.1,"vevco2":32.2,"peto2":94,"petco2":37.7,"o2p":18.2,"spd":5.0,"grd":0.0,"mets":5.3,"vt":2074,"rr":20,"fat":0.86,"cho":0.12},{"t":180,"ex":178.6,"vo2":2057,"vo2kg":21.0,"vco2":1431,"rer":0.70,"hr":104,"ve":44.2,"vevo2":21.5,"vevco2":30.9,"peto2":91,"petco2":38.6,"o2p":19.8,"spd":5.0,"grd":0.0,"mets":6.0,"vt":2167,"rr":20,"fat":0,"cho":0},{"t":190,"ex":188.6,"vo2":2391,"vo2kg":24.4,"vco2":1640,"rer":0.69,"hr":106,"ve":50.5,"vevo2":21.1,"vevco2":30.8,"peto2":91,"petco2":38.9,"o2p":22.5,"spd":5.0,"grd":0.0,"mets":7.0,"vt":2148,"rr":23,"fat":0,"cho":0},{"t":200,"ex":198.6,"vo2":2427,"vo2kg":24.8,"vco2":1708,"rer":0.70,"hr":108,"ve":51.3,"vevo2":21.1,"vevco2":30.0,"peto2":91,"petco2":39.5,"o2p":22.4,"spd":5.0,"grd":0.0,"mets":7.1,"vt":2341,"rr":22,"fat":1.21,"cho":0},{"t":210,"ex":208.6,"vo2":2534,"vo2kg":25.9,"vco2":1796,"rer":0.71,"hr":110,"ve":52.7,"vevo2":20.8,"vevco2":29.3,"peto2":90,"petco2":40.2,"o2p":23.1,"spd":5.0,"grd":0.0,"mets":7.4,"vt":2460,"rr":21,"fat":1.24,"cho":0.06},{"t":220,"ex":218.6,"vo2":2593,"vo2kg":26.5,"vco2":1929,"rer":0.74,"hr":112,"ve":56.0,"vevo2":21.6,"vevco2":29.0,"peto2":92,"petco2":40.5,"o2p":23.2,"spd":5.0,"grd":0.0,"mets":7.6,"vt":2791,"rr":20,"fat":1.11,"cho":0.48},{"t":230,"ex":228.6,"vo2":2804,"vo2kg":28.6,"vco2":2139,"rer":0.76,"hr":114,"ve":63.0,"vevo2":22.5,"vevco2":29.5,"peto2":93,"petco2":40.2,"o2p":24.6,"spd":5.0,"grd":0.0,"mets":8.2,"vt":2729,"rr":23,"fat":1.12,"cho":0.76},{"t":240,"ex":238.6,"vo2":2730,"vo2kg":27.9,"vco2":2163,"rer":0.79,"hr":117,"ve":64.1,"vevo2":23.5,"vevco2":29.6,"peto2":95,"petco2":40.1,"o2p":23.4,"spd":5.0,"grd":0.0,"mets":8.0,"vt":2697,"rr":24,"fat":0.95,"cho":1.11},{"t":250,"ex":248.6,"vo2":2791,"vo2kg":28.5,"vco2":2239,"rer":0.80,"hr":120,"ve":66.3,"vevo2":23.8,"vevco2":29.6,"peto2":96,"petco2":40.2,"o2p":23.3,"spd":5.0,"grd":2.5,"mets":8.1,"vt":2697,"rr":25,"fat":0.92,"cho":1.26},{"t":260,"ex":258.6,"vo2":2742,"vo2kg":28.0,"vco2":2240,"rer":0.82,"hr":122,"ve":65.9,"vevo2":24.0,"vevco2":29.4,"peto2":96,"petco2":40.6,"o2p":22.4,"spd":5.0,"grd":2.5,"mets":8.0,"vt":2821,"rr":23,"fat":0.84,"cho":1.43},{"t":270,"ex":268.6,"vo2":2880,"vo2kg":29.4,"vco2":2373,"rer":0.82,"hr":125,"ve":69.8,"vevo2":24.2,"vevco2":29.4,"peto2":96,"petco2":40.7,"o2p":23.1,"spd":5.0,"grd":2.5,"mets":8.4,"vt":2976,"rr":23,"fat":0.85,"cho":1.59},{"t":280,"ex":278.6,"vo2":2875,"vo2kg":29.3,"vco2":2419,"rer":0.84,"hr":126,"ve":72.0,"vevo2":25.0,"vevco2":29.8,"peto2":97,"petco2":40.4,"o2p":22.8,"spd":5.0,"grd":2.5,"mets":8.4,"vt":2899,"rr":25,"fat":0.76,"cho":1.82},{"t":290,"ex":288.6,"vo2":2991,"vo2kg":30.5,"vco2":2546,"rer":0.85,"hr":127,"ve":76.2,"vevo2":25.5,"vevco2":29.9,"peto2":98,"petco2":40.2,"o2p":23.5,"spd":5.0,"grd":2.5,"mets":8.7,"vt":2994,"rr":25,"fat":0.74,"cho":2.03},{"t":300,"ex":298.6,"vo2":2952,"vo2kg":30.1,"vco2":2550,"rer":0.86,"hr":128,"ve":75.8,"vevo2":25.7,"vevco2":29.7,"peto2":98,"petco2":40.3,"o2p":23.0,"spd":5.0,"grd":2.5,"mets":8.6,"vt":3009,"rr":25,"fat":0.67,"cho":2.17},{"t":310,"ex":308.6,"vo2":2953,"vo2kg":30.1,"vco2":2557,"rer":0.87,"hr":130,"ve":74.8,"vevo2":25.3,"vevco2":29.3,"peto2":97,"petco2":40.8,"o2p":22.7,"spd":5.0,"grd":2.5,"mets":8.6,"vt":3130,"rr":24,"fat":0.66,"cho":2.2},{"t":320,"ex":318.6,"vo2":3017,"vo2kg":30.8,"vco2":2608,"rer":0.86,"hr":130,"ve":75.5,"vevo2":25.0,"vevco2":29.0,"peto2":97,"petco2":41.2,"o2p":23.1,"spd":5.0,"grd":2.5,"mets":8.8,"vt":3115,"rr":24,"fat":0.68,"cho":2.22},{"t":330,"ex":328.6,"vo2":3059,"vo2kg":31.2,"vco2":2674,"rer":0.87,"hr":130,"ve":78.0,"vevo2":25.5,"vevco2":29.2,"peto2":97,"petco2":41.3,"o2p":23.5,"spd":5.0,"grd":2.5,"mets":8.9,"vt":3122,"rr":25,"fat":0.64,"cho":2.39},{"t":340,"ex":338.6,"vo2":3044,"vo2kg":31.1,"vco2":2657,"rer":0.87,"hr":130,"ve":77.2,"vevo2":25.4,"vevco2":29.1,"peto2":97,"petco2":41.6,"o2p":23.4,"spd":5.0,"grd":2.5,"mets":8.9,"vt":3016,"rr":26,"fat":0.64,"cho":2.36},{"t":350,"ex":348.6,"vo2":2982,"vo2kg":30.4,"vco2":2610,"rer":0.88,"hr":130,"ve":76.1,"vevo2":25.5,"vevco2":29.2,"peto2":97,"petco2":41.7,"o2p":23.0,"spd":5.0,"grd":2.5,"mets":8.7,"vt":2987,"rr":25,"fat":0.62,"cho":2.34},{"t":360,"ex":358.6,"vo2":3039,"vo2kg":31.0,"vco2":2575,"rer":0.85,"hr":130,"ve":74.0,"vevo2":24.4,"vevco2":28.7,"peto2":95,"petco2":42.5,"o2p":23.4,"spd":5.0,"grd":2.5,"mets":8.9,"vt":2936,"rr":25,"fat":0.77,"cho":2.0},{"t":370,"ex":368.6,"vo2":3097,"vo2kg":31.6,"vco2":2645,"rer":0.85,"hr":129,"ve":76.4,"vevo2":24.7,"vevco2":28.9,"peto2":96,"petco2":42.2,"o2p":24.1,"spd":5.0,"grd":5.0,"mets":9.0,"vt":3027,"rr":25,"fat":0.75,"cho":2.14},{"t":380,"ex":378.6,"vo2":3143,"vo2kg":32.1,"vco2":2726,"rer":0.87,"hr":129,"ve":79.3,"vevo2":25.2,"vevco2":29.1,"peto2":97,"petco2":41.7,"o2p":24.4,"spd":5.0,"grd":5.0,"mets":9.2,"vt":3050,"rr":26,"fat":0.69,"cho":2.36},{"t":390,"ex":388.6,"vo2":3161,"vo2kg":32.3,"vco2":2833,"rer":0.90,"hr":131,"ve":83.2,"vevo2":26.3,"vevco2":29.4,"peto2":99,"petco2":40.8,"o2p":24.1,"spd":5.0,"grd":5.0,"mets":9.2,"vt":3195,"rr":26,"fat":0.54,"cho":2.79},{"t":400,"ex":398.6,"vo2":3227,"vo2kg":32.9,"vco2":2874,"rer":0.89,"hr":134,"ve":84.0,"vevo2":26.0,"vevco2":29.2,"peto2":99,"petco2":40.9,"o2p":24.1,"spd":5.0,"grd":5.0,"mets":9.4,"vt":3211,"rr":26,"fat":0.58,"cho":2.77},{"t":410,"ex":408.6,"vo2":3308,"vo2kg":33.8,"vco2":2922,"rer":0.88,"hr":139,"ve":84.4,"vevo2":25.5,"vevco2":28.9,"peto2":98,"petco2":41.6,"o2p":23.8,"spd":5.0,"grd":5.0,"mets":9.6,"vt":3309,"rr":26,"fat":0.64,"cho":2.73},{"t":420,"ex":418.6,"vo2":3329,"vo2kg":34.0,"vco2":2953,"rer":0.89,"hr":139,"ve":85.1,"vevo2":25.6,"vevco2":28.8,"peto2":97,"petco2":41.8,"o2p":23.9,"spd":5.0,"grd":5.0,"mets":9.7,"vt":3215,"rr":26,"fat":0.62,"cho":2.8},{"t":430,"ex":428.6,"vo2":3338,"vo2kg":34.1,"vco2":2999,"rer":0.90,"hr":140,"ve":86.8,"vevo2":26.0,"vevco2":28.9,"peto2":97,"petco2":42.1,"o2p":23.8,"spd":5.0,"grd":5.0,"mets":9.7,"vt":3255,"rr":27,"fat":0.56,"cho":2.98},{"t":440,"ex":438.6,"vo2":3376,"vo2kg":34.5,"vco2":3082,"rer":0.91,"hr":139,"ve":90.6,"vevo2":26.8,"vevco2":29.4,"peto2":98,"petco2":41.8,"o2p":24.3,"spd":5.0,"grd":5.0,"mets":9.8,"vt":3324,"rr":27,"fat":0.48,"cho":3.24},{"t":450,"ex":448.6,"vo2":3434,"vo2kg":35.0,"vco2":3184,"rer":0.93,"hr":141,"ve":94.4,"vevo2":27.5,"vevco2":29.6,"peto2":99,"petco2":41.3,"o2p":24.4,"spd":5.0,"grd":5.0,"mets":10.0,"vt":3469,"rr":27,"fat":0.41,"cho":3.52},{"t":460,"ex":458.6,"vo2":3436,"vo2kg":35.1,"vco2":3202,"rer":0.93,"hr":142,"ve":95.3,"vevo2":27.7,"vevco2":29.8,"peto2":100,"petco2":41.1,"o2p":24.1,"spd":5.0,"grd":5.0,"mets":10.0,"vt":3499,"rr":27,"fat":0.38,"cho":3.6},{"t":470,"ex":468.6,"vo2":3454,"vo2kg":35.3,"vco2":3207,"rer":0.93,"hr":144,"ve":94.4,"vevo2":27.3,"vevco2":29.4,"peto2":100,"petco2":41.1,"o2p":24.0,"spd":5.0,"grd":5.0,"mets":10.1,"vt":3525,"rr":27,"fat":0.4,"cho":3.56},{"t":480,"ex":478.6,"vo2":3472,"vo2kg":35.4,"vco2":3191,"rer":0.92,"hr":144,"ve":92.4,"vevo2":26.6,"vevco2":28.9,"peto2":99,"petco2":41.6,"o2p":24.0,"spd":5.0,"grd":5.0,"mets":10.1,"vt":3557,"rr":26,"fat":0.46,"cho":3.43},{"t":490,"ex":488.6,"vo2":3539,"vo2kg":36.1,"vco2":3230,"rer":0.91,"hr":144,"ve":92.9,"vevo2":26.3,"vevco2":28.8,"peto2":98,"petco2":41.7,"o2p":24.7,"spd":5.0,"grd":7.5,"mets":10.3,"vt":3522,"rr":26,"fat":0.5,"cho":3.39},{"t":500,"ex":498.6,"vo2":3562,"vo2kg":36.4,"vco2":3284,"rer":0.92,"hr":143,"ve":95.6,"vevo2":26.8,"vevco2":29.1,"peto2":99,"petco2":41.5,"o2p":25.0,"spd":5.0,"grd":7.5,"mets":10.4,"vt":3481,"rr":27,"fat":0.45,"cho":3.57},{"t":510,"ex":508.6,"vo2":3581,"vo2kg":36.6,"vco2":3300,"rer":0.92,"hr":144,"ve":95.7,"vevo2":26.7,"vevco2":29.0,"peto2":99,"petco2":41.6,"o2p":25.0,"spd":5.0,"grd":7.5,"mets":10.4,"vt":3369,"rr":28,"fat":0.46,"cho":3.58},{"t":520,"ex":518.6,"vo2":3588,"vo2kg":36.6,"vco2":3339,"rer":0.93,"hr":145,"ve":97.0,"vevo2":27.0,"vevco2":29.0,"peto2":99,"petco2":41.8,"o2p":24.7,"spd":5.0,"grd":7.5,"mets":10.5,"vt":3430,"rr":28,"fat":0.4,"cho":3.74},{"t":530,"ex":528.6,"vo2":3621,"vo2kg":37.0,"vco2":3364,"rer":0.93,"hr":147,"ve":96.7,"vevo2":26.7,"vevco2":28.7,"peto2":99,"petco2":42.1,"o2p":24.6,"spd":5.0,"grd":7.5,"mets":10.6,"vt":3503,"rr":28,"fat":0.42,"cho":3.74},{"t":540,"ex":538.6,"vo2":3653,"vo2kg":37.3,"vco2":3411,"rer":0.93,"hr":148,"ve":98.8,"vevo2":27.0,"vevco2":29.0,"peto2":99,"petco2":42.2,"o2p":24.7,"spd":5.0,"grd":7.5,"mets":10.7,"vt":3632,"rr":27,"fat":0.39,"cho":3.86},{"t":550,"ex":548.6,"vo2":3679,"vo2kg":37.6,"vco2":3433,"rer":0.93,"hr":148,"ve":99.1,"vevo2":26.9,"vevco2":28.9,"peto2":99,"petco2":42.3,"o2p":24.8,"spd":5.0,"grd":7.5,"mets":10.7,"vt":3665,"rr":27,"fat":0.4,"cho":3.87},{"t":560,"ex":558.6,"vo2":3707,"vo2kg":37.8,"vco2":3480,"rer":0.94,"hr":148,"ve":100.5,"vevo2":27.1,"vevco2":28.9,"peto2":99,"petco2":42.4,"o2p":25.0,"spd":5.0,"grd":7.5,"mets":10.8,"vt":3704,"rr":27,"fat":0.36,"cho":4.0},{"t":570,"ex":568.6,"vo2":3696,"vo2kg":37.7,"vco2":3468,"rer":0.94,"hr":148,"ve":98.9,"vevo2":26.7,"vevco2":28.5,"peto2":98,"petco2":42.6,"o2p":25.0,"spd":5.0,"grd":7.5,"mets":10.8,"vt":3652,"rr":27,"fat":0.37,"cho":3.98},{"t":580,"ex":578.6,"vo2":3727,"vo2kg":38.0,"vco2":3488,"rer":0.94,"hr":148,"ve":98.4,"vevo2":26.4,"vevco2":28.2,"peto2":98,"petco2":42.7,"o2p":25.1,"spd":5.0,"grd":7.5,"mets":10.9,"vt":3583,"rr":27,"fat":0.38,"cho":3.97},{"t":590,"ex":588.6,"vo2":3787,"vo2kg":38.7,"vco2":3544,"rer":0.94,"hr":150,"ve":100.2,"vevo2":26.4,"vevco2":28.3,"peto2":98,"petco2":42.6,"o2p":25.3,"spd":5.0,"grd":7.5,"mets":11.0,"vt":3425,"rr":29,"fat":0.39,"cho":4.03},{"t":600,"ex":598.6,"vo2":3873,"vo2kg":39.5,"vco2":3687,"rer":0.95,"hr":151,"ve":106.8,"vevo2":27.6,"vevco2":29.0,"peto2":100,"petco2":42.1,"o2p":25.7,"spd":5.0,"grd":7.5,"mets":11.3,"vt":3475,"rr":31,"fat":0.29,"cho":4.41},{"t":610,"ex":608.6,"vo2":3882,"vo2kg":39.6,"vco2":3769,"rer":0.97,"hr":152,"ve":111.8,"vevo2":28.8,"vevco2":29.7,"peto2":101,"petco2":41.3,"o2p":25.6,"spd":5.0,"grd":10.0,"mets":11.3,"vt":3461,"rr":32,"fat":0.17,"cho":4.76},{"t":620,"ex":618.6,"vo2":3857,"vo2kg":39.4,"vco2":3779,"rer":0.98,"hr":153,"ve":112.1,"vevo2":29.1,"vevco2":29.7,"peto2":102,"petco2":41.2,"o2p":25.3,"spd":5.0,"grd":10.0,"mets":11.2,"vt":3533,"rr":32,"fat":0.11,"cho":4.88},{"t":630,"ex":628.6,"vo2":3879,"vo2kg":39.6,"vco2":3795,"rer":0.98,"hr":154,"ve":112.6,"vevo2":29.0,"vevco2":29.7,"peto2":102,"petco2":41.1,"o2p":25.2,"spd":5.0,"grd":10.0,"mets":11.3,"vt":3562,"rr":32,"fat":0.12,"cho":4.89},{"t":640,"ex":638.6,"vo2":3936,"vo2kg":40.2,"vco2":3825,"rer":0.97,"hr":156,"ve":110.7,"vevo2":28.1,"vevco2":28.9,"peto2":101,"petco2":41.7,"o2p":25.3,"spd":5.0,"grd":10.0,"mets":11.5,"vt":3679,"rr":30,"fat":0.16,"cho":4.84},{"t":650,"ex":648.6,"vo2":3968,"vo2kg":40.5,"vco2":3859,"rer":0.97,"hr":156,"ve":111.1,"vevo2":28.0,"vevco2":28.8,"peto2":100,"petco2":42.0,"o2p":25.4,"spd":5.0,"grd":10.0,"mets":11.6,"vt":3767,"rr":29,"fat":0.16,"cho":4.89},{"t":660,"ex":658.6,"vo2":3971,"vo2kg":40.5,"vco2":3875,"rer":0.98,"hr":157,"ve":109.1,"vevo2":27.5,"vevco2":28.2,"peto2":100,"petco2":42.8,"o2p":25.3,"spd":5.0,"grd":10.0,"mets":11.6,"vt":3772,"rr":29,"fat":0.14,"cho":4.96},{"t":670,"ex":668.6,"vo2":3983,"vo2kg":40.7,"vco2":3896,"rer":0.98,"hr":157,"ve":108.4,"vevo2":27.2,"vevco2":27.8,"peto2":99,"petco2":43.5,"o2p":25.3,"spd":5.0,"grd":10.0,"mets":11.6,"vt":3733,"rr":29,"fat":0.12,"cho":5.01},{"t":680,"ex":678.6,"vo2":4069,"vo2kg":41.5,"vco2":4038,"rer":0.99,"hr":157,"ve":112.7,"vevo2":27.7,"vevco2":27.9,"peto2":100,"petco2":43.3,"o2p":26.0,"spd":5.0,"grd":10.0,"mets":11.9,"vt":3779,"rr":30,"fat":0.03,"cho":5.39},{"t":690,"ex":688.6,"vo2":4059,"vo2kg":41.4,"vco2":4060,"rer":1.00,"hr":156,"ve":112.5,"vevo2":27.7,"vevco2":27.7,"peto2":100,"petco2":43.7,"o2p":26.0,"spd":5.0,"grd":10.0,"mets":11.8,"vt":3790,"rr":30,"fat":0,"cho":0},{"t":700,"ex":698.6,"vo2":4095,"vo2kg":41.8,"vco2":4185,"rer":1.02,"hr":156,"ve":116.6,"vevo2":28.5,"vevco2":27.9,"peto2":101,"petco2":43.3,"o2p":26.2,"spd":5.0,"grd":10.0,"mets":11.9,"vt":3803,"rr":31,"fat":0,"cho":0},{"t":710,"ex":708.6,"vo2":4045,"vo2kg":41.3,"vco2":4169,"rer":1.03,"hr":156,"ve":114.5,"vevo2":28.3,"vevco2":27.5,"peto2":100,"petco2":43.8,"o2p":25.9,"spd":5.0,"grd":10.0,"mets":11.8,"vt":3756,"rr":30,"fat":0,"cho":0},{"t":720,"ex":718.6,"vo2":4113,"vo2kg":42.0,"vco2":4293,"rer":1.04,"hr":157,"ve":119.0,"vevo2":28.9,"vevco2":27.7,"peto2":101,"petco2":43.3,"o2p":26.3,"spd":5.0,"grd":10.0,"mets":12.0,"vt":3772,"rr":32,"fat":0,"cho":0},{"t":730,"ex":728.6,"vo2":4111,"vo2kg":42.0,"vco2":4317,"rer":1.05,"hr":157,"ve":121.4,"vevo2":29.5,"vevco2":28.1,"peto2":102,"petco2":43.2,"o2p":26.2,"spd":5.0,"grd":12.5,"mets":12.0,"vt":3750,"rr":32,"fat":0,"cho":0},{"t":740,"ex":738.6,"vo2":4115,"vo2kg":42.0,"vco2":4351,"rer":1.06,"hr":159,"ve":125.0,"vevo2":30.4,"vevco2":28.7,"peto2":103,"petco2":42.5,"o2p":25.9,"spd":5.0,"grd":12.5,"mets":12.0,"vt":3713,"rr":34,"fat":0,"cho":0},{"t":750,"ex":748.6,"vo2":4110,"vo2kg":41.9,"vco2":4325,"rer":1.05,"hr":160,"ve":123.5,"vevo2":30.0,"vevco2":28.5,"peto2":102,"petco2":42.7,"o2p":25.8,"spd":5.0,"grd":12.5,"mets":12.0,"vt":3654,"rr":34,"fat":0,"cho":0},{"t":760,"ex":758.6,"vo2":4119,"vo2kg":42.0,"vco2":4350,"rer":1.06,"hr":160,"ve":123.0,"vevo2":29.9,"vevco2":28.3,"peto2":102,"petco2":42.9,"o2p":25.7,"spd":5.0,"grd":12.5,"mets":12.0,"vt":3588,"rr":34,"fat":0,"cho":0},{"t":770,"ex":768.6,"vo2":4125,"vo2kg":42.1,"vco2":4388,"rer":1.06,"hr":160,"ve":122.1,"vevo2":29.6,"vevco2":27.8,"peto2":102,"petco2":43.4,"o2p":25.8,"spd":5.0,"grd":12.5,"mets":12.0,"vt":3596,"rr":34,"fat":0,"cho":0},{"t":780,"ex":778.6,"vo2":4152,"vo2kg":42.4,"vco2":4488,"rer":1.08,"hr":160,"ve":125.8,"vevo2":30.3,"vevco2":28.0,"peto2":103,"petco2":43.4,"o2p":26.0,"spd":5.0,"grd":12.5,"mets":12.1,"vt":3578,"rr":35,"fat":0,"cho":0},{"t":790,"ex":788.6,"vo2":4122,"vo2kg":42.1,"vco2":4526,"rer":1.10,"hr":160,"ve":126.8,"vevo2":30.8,"vevco2":28.0,"peto2":103,"petco2":43.5,"o2p":25.8,"spd":5.0,"grd":12.5,"mets":12.0,"vt":3583,"rr":35,"fat":0,"cho":0},{"t":800,"ex":798.6,"vo2":4156,"vo2kg":42.4,"vco2":4655,"rer":1.12,"hr":160,"ve":132.5,"vevo2":31.9,"vevco2":28.5,"peto2":104,"petco2":43.0,"o2p":25.9,"spd":5.0,"grd":12.5,"mets":12.1,"vt":3589,"rr":37,"fat":0,"cho":0},{"t":810,"ex":808.6,"vo2":4081,"vo2kg":41.7,"vco2":4681,"rer":1.15,"hr":161,"ve":137.8,"vevo2":33.8,"vevco2":29.4,"peto2":106,"petco2":41.8,"o2p":25.3,"spd":5.0,"grd":12.5,"mets":11.9,"vt":3594,"rr":38,"fat":0,"cho":0},{"t":820,"ex":815.1,"vo2":4027,"vo2kg":41.1,"vco2":4677,"rer":1.16,"hr":162,"ve":140.3,"vevo2":34.8,"vevco2":30.0,"peto2":106,"petco2":41.3,"o2p":24.8,"spd":4.9,"grd":0.0,"mets":11.7,"vt":3576,"rr":39,"fat":0,"cho":0},{"t":830,"ex":815.1,"vo2":3957,"vo2kg":40.4,"vco2":4645,"rer":1.17,"hr":162,"ve":139.9,"vevo2":35.4,"vevco2":30.1,"peto2":107,"petco2":41.5,"o2p":24.4,"spd":2.0,"grd":0.0,"mets":11.5,"vt":3700,"rr":38,"fat":0,"cho":0},{"t":840,"ex":815.1,"vo2":3913,"vo2kg":39.9,"vco2":4623,"rer":1.18,"hr":160,"ve":134.6,"vevo2":34.4,"vevco2":29.1,"peto2":105,"petco2":43.3,"o2p":24.4,"spd":2.0,"grd":0.0,"mets":11.4,"vt":3782,"rr":36,"fat":0,"cho":0},{"t":850,"ex":815.1,"vo2":3832,"vo2kg":39.1,"vco2":4621,"rer":1.21,"hr":156,"ve":132.2,"vevo2":34.5,"vevco2":28.6,"peto2":105,"petco2":44.5,"o2p":24.6,"spd":2.0,"grd":0.0,"mets":11.2,"vt":3917,"rr":34,"fat":0,"cho":0},{"t":860,"ex":815.1,"vo2":3584,"vo2kg":36.6,"vco2":4451,"rer":1.24,"hr":150,"ve":124.8,"vevo2":34.8,"vevco2":28.1,"peto2":105,"petco2":45.5,"o2p":23.9,"spd":2.0,"grd":0.0,"mets":10.5,"vt":3807,"rr":33,"fat":0,"cho":0},{"t":870,"ex":815.1,"vo2":3209,"vo2kg":32.8,"vco2":4205,"rer":1.31,"hr":144,"ve":117.6,"vevo2":36.6,"vevco2":28.0,"peto2":106,"petco2":45.4,"o2p":22.4,"spd":2.0,"grd":0.0,"mets":9.4,"vt":3739,"rr":31,"fat":0,"cho":0},{"t":880,"ex":815.1,"vo2":2839,"vo2kg":29.0,"vco2":3935,"rer":1.39,"hr":138,"ve":111.6,"vevo2":39.3,"vevco2":28.4,"peto2":108,"petco2":44.8,"o2p":20.5,"spd":2.0,"grd":0.0,"mets":8.3,"vt":3676,"rr":30,"fat":0,"cho":0},{"t":890,"ex":815.1,"vo2":2538,"vo2kg":25.9,"vco2":3716,"rer":1.46,"hr":134,"ve":108.4,"vevo2":42.7,"vevco2":29.2,"peto2":110,"petco2":43.8,"o2p":19.0,"spd":2.0,"grd":0.0,"mets":7.4,"vt":3619,"rr":30,"fat":0,"cho":0},{"t":900,"ex":815.1,"vo2":2262,"vo2kg":23.1,"vco2":3478,"rer":1.54,"hr":130,"ve":106.1,"vevo2":46.9,"vevco2":30.5,"peto2":112,"petco2":42.5,"o2p":17.4,"spd":2.0,"grd":0.0,"mets":6.6,"vt":3569,"rr":30,"fat":0,"cho":0},{"t":910,"ex":815.1,"vo2":1992,"vo2kg":20.3,"vco2":3156,"rer":1.58,"hr":127,"ve":96.9,"vevo2":48.6,"vevco2":30.7,"peto2":113,"petco2":42.1,"o2p":15.7,"spd":2.0,"grd":0.0,"mets":5.8,"vt":3454,"rr":28,"fat":0,"cho":0},{"t":920,"ex":815.1,"vo2":1863,"vo2kg":19.0,"vco2":2977,"rer":1.60,"hr":124,"ve":92.7,"vevo2":49.7,"vevco2":31.1,"peto2":114,"petco2":41.2,"o2p":15.0,"spd":2.0,"grd":0.0,"mets":5.4,"vt":3410,"rr":27,"fat":0,"cho":0},{"t":930,"ex":815.1,"vo2":1759,"vo2kg":18.0,"vco2":2811,"rer":1.60,"hr":120,"ve":88.8,"vevo2":50.5,"vevco2":31.6,"peto2":114,"petco2":40.5,"o2p":14.6,"spd":2.0,"grd":0.0,"mets":5.1,"vt":3249,"rr":27,"fat":0,"cho":0},{"t":940,"ex":815.1,"vo2":1733,"vo2kg":17.7,"vco2":2798,"rer":1.61,"hr":118,"ve":93.2,"vevo2":53.8,"vevco2":33.3,"peto2":116,"petco2":38.8,"o2p":14.7,"spd":2.0,"grd":0.0,"mets":5.1,"vt":3261,"rr":29,"fat":0,"cho":0},{"t":940.2,"ex":815.1,"vo2":1624,"vo2kg":16.6,"vco2":2642,"rer":1.63,"hr":116,"ve":89.8,"vevo2":55.3,"vevco2":34.0,"peto2":116,"petco2":38.3,"o2p":13.9,"spd":2.0,"grd":0.0,"mets":4.7,"vt":3151,"rr":29,"fat":0,"cho":0}];
+
+// ============================================================
+// HELPERS
+// ============================================================
+const fmt = s => { const m=Math.floor(s/60), sec=Math.floor(s%60); return `${m}:${sec.toString().padStart(2,'0')}`; };
+const exIdx = D.findIndex(d => d.spd < 4 && d.t > 600); // first recovery breath
+const exerciseEnd = exIdx > 0 ? exIdx : D.length;
+const labels = D.map(d => fmt(d.t));
+
+// Chart defaults
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = 'rgba(30,41,59,0.6)';
+Chart.defaults.font.family = "'SF Mono','Fira Code','Consolas',monospace";
+Chart.defaults.font.size = 11;
+Chart.defaults.plugins.legend.labels.boxWidth = 12;
+Chart.defaults.elements.point.radius = 0;
+Chart.defaults.elements.point.hoverRadius = 4;
+Chart.defaults.elements.line.borderWidth = 2;
+
+const VT1_T = 190; // RER nadir at 3:10
+const VT2_T = 710; // VE/VCO2 nadir at 11:50
+const vtAnnotations = {
+  vt1: { type:'line', xMin:labels.indexOf(fmt(VT1_T)), xMax:labels.indexOf(fmt(VT1_T)), borderColor:'rgba(251,191,36,0.6)', borderWidth:2, borderDash:[6,4], label:{display:true,content:'VT1',position:'start',backgroundColor:'rgba(251,191,36,0.15)',color:'#fbbf24',font:{size:10}} },
+  vt2: { type:'line', xMin:labels.indexOf(fmt(VT2_T)), xMax:labels.indexOf(fmt(VT2_T)), borderColor:'rgba(248,113,113,0.6)', borderWidth:2, borderDash:[6,4], label:{display:true,content:'VT2',position:'start',backgroundColor:'rgba(248,113,113,0.15)',color:'#f87171',font:{size:10}} },
+  rec: { type:'line', xMin:exerciseEnd, xMax:exerciseEnd, borderColor:'rgba(100,116,139,0.4)', borderWidth:1, borderDash:[4,4], label:{display:true,content:'Recovery',position:'start',backgroundColor:'rgba(100,116,139,0.15)',color:'#64748b',font:{size:10}} },
+};
+
+// ============================================================
+// DATA DOTS
+// ============================================================
+const dotsEl = document.getElementById('dataDots');
+const colors = ['#60a5fa','#34d399','#f59e0b','#f87171','#a78bfa','#06b6d4','#ec4899','#84cc16','#fb923c','#6366f1',
+                '#60a5fa','#34d399','#f59e0b','#f87171','#a78bfa','#06b6d4','#ec4899','#84cc16','#fb923c','#6366f1'];
+for (let i = 0; i < 93; i++) {
+  for (let j = 0; j < 20; j++) {
+    const dot = document.createElement('div');
+    dot.className = 'dot';
+    dot.style.backgroundColor = colors[j];
+    dot.style.opacity = 0.6 + (i/93)*0.4;
+    dotsEl.appendChild(dot);
+  }
+}
+
+// ============================================================
+// MAIN CHART
+// ============================================================
+new Chart(document.getElementById('mainChart'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [
+      { label:'VO2 (mL/min)', data:D.map(d=>d.vo2), borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.1)', fill:true, yAxisID:'y' },
+      { label:'HR (bpm)', data:D.map(d=>d.hr), borderColor:'#ef4444', yAxisID:'y1' },
+      { label:'RER', data:D.map(d=>d.rer), borderColor:'#f59e0b', yAxisID:'y2' },
+      { label:'Grade (%)', data:D.map(d=>d.grd), borderColor:'rgba(100,116,139,0.4)', borderWidth:1, fill:true, backgroundColor:'rgba(100,116,139,0.05)', yAxisID:'y3', stepped:true },
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    interaction:{ mode:'index', intersect:false },
+    plugins: { annotation:{ annotations:vtAnnotations } },
+    scales: {
+      y:  { position:'left', title:{display:true,text:'VO2 (mL/min)'}, min:0, max:5000 },
+      y1: { position:'right', title:{display:true,text:'HR (bpm)'}, min:40, max:180, grid:{drawOnChartArea:false} },
+      y2: { position:'right', title:{display:true,text:'RER'}, min:0.6, max:1.7, grid:{drawOnChartArea:false}, ticks:{callback:v=>v.toFixed(1)} },
+      y3: { display:false, min:0, max:20 },
+      x:  { ticks:{maxTicksLimit:15} }
+    }
+  }
+});
+
+// ============================================================
+// SUBSTRATE CHART
+// ============================================================
+new Chart(document.getElementById('substrateChart'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [
+      { label:'Fat (g/min)', data:D.map(d=>d.fat||null), borderColor:'#f97316', backgroundColor:'rgba(249,115,22,0.15)', fill:true },
+      { label:'Carbs (g/min)', data:D.map(d=>d.cho||null), borderColor:'#6366f1', backgroundColor:'rgba(99,102,241,0.15)', fill:true },
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    interaction:{ mode:'index', intersect:false },
+    plugins:{ annotation:{ annotations:{
+      cross:{ type:'line', xMin:labels.indexOf(fmt(280)), xMax:labels.indexOf(fmt(280)), borderColor:'rgba(255,255,255,0.3)', borderWidth:1, borderDash:[4,4],
+        label:{display:true,content:'Crossover',position:'center',backgroundColor:'rgba(255,255,255,0.1)',color:'#94a3b8',font:{size:10}} }
+    }}},
+    scales: {
+      y: { title:{display:true,text:'g/min'}, min:0 },
+      x: { ticks:{maxTicksLimit:12} }
+    }
+  }
+});
+
+// ============================================================
+// O2 PULSE CHART
+// ============================================================
+new Chart(document.getElementById('o2pulseChart'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [
+      { label:'O2 Pulse (mL/beat)', data:D.map(d=>d.o2p), borderColor:'#06b6d4', backgroundColor:'rgba(6,182,212,0.1)', fill:true },
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    interaction:{ mode:'index', intersect:false },
+    plugins:{ annotation:{ annotations:{
+      peak:{ type:'point', xValue:labels.indexOf(fmt(720)), yValue:26.3, backgroundColor:'#06b6d4', radius:6,
+        label:{display:true,content:'Peak 26.3',position:'top',backgroundColor:'rgba(6,182,212,0.2)',color:'#06b6d4',font:{size:10}} }
+    }}},
+    scales: {
+      y: { title:{display:true,text:'mL O2 / heartbeat'}, min:10, max:30 },
+      x: { ticks:{maxTicksLimit:12} }
+    }
+  }
+});
+
+// ============================================================
+// VE vs VCO2 CHART (scatter with slope line)
+// ============================================================
+const exData = D.slice(10, exerciseEnd);
+new Chart(document.getElementById('vevco2Chart'), {
+  type: 'scatter',
+  data: {
+    datasets: [
+      { label:'VE vs VCO2', data:exData.map(d=>({x:d.vco2/1000,y:d.ve})), backgroundColor:'rgba(96,165,250,0.5)', pointRadius:3 },
+      { label:'Slope = 26.7', data:[{x:0.8,y:0.8*26.7+7},{x:4.7,y:4.7*26.7+7}], type:'line', borderColor:'rgba(52,211,153,0.6)', borderWidth:2, borderDash:[6,4], pointRadius:0 },
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ annotation:{ annotations:{
+      normal:{ type:'box', xMin:0.5,xMax:5,yMin:0,yMax:5*30+7, backgroundColor:'rgba(52,211,153,0.03)', borderWidth:0,
+        label:{display:true,content:'Normal <30',position:{x:'end',y:'start'},color:'rgba(52,211,153,0.4)',font:{size:10}} }
+    }}},
+    scales: {
+      x: { title:{display:true,text:'VCO2 (L/min)'}, min:0.5, max:5 },
+      y: { title:{display:true,text:'VE (L/min)'}, min:20, max:150 }
+    }
+  }
+});
+
+// ============================================================
+// BREATHING STRATEGY CHART
+// ============================================================
+new Chart(document.getElementById('breathingChart'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [
+      { label:'Vt (mL)', data:D.map(d=>d.vt), borderColor:'#a78bfa', yAxisID:'y' },
+      { label:'RR (br/min)', data:D.map(d=>d.rr), borderColor:'#f472b6', yAxisID:'y1' },
+      { label:'VE (L/min)', data:D.map(d=>d.ve), borderColor:'rgba(100,116,139,0.4)', borderWidth:1, yAxisID:'y2' },
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    interaction:{ mode:'index', intersect:false },
+    scales: {
+      y:  { position:'left', title:{display:true,text:'Vt (mL)'}, min:500, max:4500 },
+      y1: { position:'right', title:{display:true,text:'RR (br/min)'}, min:15, max:45, grid:{drawOnChartArea:false} },
+      y2: { display:false, min:0, max:160 },
+      x:  { ticks:{maxTicksLimit:12} }
+    }
+  }
+});
+
+// ============================================================
+// HR RECOVERY CHART
+// ============================================================
+const recData = D.slice(exerciseEnd - 1);
+const recLabels = recData.map((d,i) => {
+  const s = d.t - recData[0].t;
+  return s <= 0 ? 'Peak' : `+${Math.round(s)}s`;
+});
+new Chart(document.getElementById('hrRecoveryChart'), {
+  type: 'line',
+  data: {
+    labels: recLabels,
+    datasets: [
+      { label:'HR (bpm)', data:recData.map(d=>d.hr), borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.1)', fill:true, tension:0.3 },
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ annotation:{ annotations:{
+      min1:{ type:'line', xMin:6, xMax:6, borderColor:'rgba(251,191,36,0.4)', borderWidth:1, borderDash:[4,4],
+        label:{display:true,content:'1 min: -24 bpm',position:'center',backgroundColor:'rgba(251,191,36,0.15)',color:'#fbbf24',font:{size:10}} },
+      abnormal:{ type:'line', yMin:150, yMax:150, borderColor:'rgba(248,113,113,0.2)', borderWidth:1, borderDash:[4,4],
+        label:{display:true,content:'Abnormal if <12 bpm drop',position:'start',color:'rgba(248,113,113,0.4)',font:{size:9}} },
+    }}},
+    scales: {
+      y: { title:{display:true,text:'HR (bpm)'}, min:100, max:170 },
+    }
+  }
+});
+
+// ============================================================
+// PetO2 / PetCO2 CHART
+// ============================================================
+new Chart(document.getElementById('petChart'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [
+      { label:'PetCO2 (mmHg)', data:D.map(d=>d.petco2), borderColor:'#a78bfa', backgroundColor:'rgba(167,139,250,0.1)', fill:true },
+      { label:'PetO2 (mmHg)', data:D.map(d=>d.peto2), borderColor:'#f472b6', backgroundColor:'rgba(244,114,182,0.05)', fill:true },
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    interaction:{ mode:'index', intersect:false },
+    plugins:{ annotation:{ annotations:vtAnnotations }},
+    scales: {
+      y: { title:{display:true,text:'mmHg'}, min:30, max:120 },
+      x: { ticks:{maxTicksLimit:12} }
+    }
+  }
+});
+
+// ============================================================
+// BXB TABLE
+// ============================================================
+const tbody = document.getElementById('bxbBody');
+D.forEach((d, i) => {
+  const phase = d.t <= 120 ? 'warmup' : (d.spd < 4 && d.t > 600) ? 'recovery' : (d.vo2 > 4000 ? 'peak' : 'exercise');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td class="phase-${phase}">${i}</td><td>${fmt(d.t)}</td><td style="color:${
+    phase==='warmup'?'#60a5fa':phase==='recovery'?'#f87171':phase==='peak'?'#f59e0b':'#34d399'
+  }">${phase}</td><td>${d.vo2}</td><td>${d.vo2kg}</td><td>${d.vco2}</td><td>${d.rer.toFixed(2)}</td><td>${d.hr}</td><td>${d.ve}</td><td>${d.vevo2}</td><td>${d.vevco2}</td><td>${d.peto2}</td><td>${d.petco2}</td><td>${d.o2p}</td><td>${d.vt}</td><td>${d.rr}</td><td>${d.fat||'—'}</td><td>${d.cho||'—'}</td><td>${d.spd}</td><td>${d.grd}</td><td>${d.mets}</td>`;
+  tbody.appendChild(tr);
+});
+</script>
+</body>
+</html>

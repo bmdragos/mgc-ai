@@ -347,15 +347,7 @@ body { background:#0a0f1a; color:#e2e8f0; font-family:'SF Mono','Fira Code','Con
     <div id="forecastReplacedContent"></div>
   </div>
 
-  <div style="font-size:11px; color:#64748b; margin-top:16px; padding:10px 12px; background:#0d1321; border-radius:6px; border:1px solid #1e293b;">
-    <strong style="color:#94a3b8;">How predictions work:</strong>
-    Umbilical predictions trigger when flow drops below 115 ml/min (4% off reference). Linear fit post-trigger,
-    displayed as running median of last 5 weekly predictions &mdash; validated to within 2&ndash;4 weeks of actual threshold.
-    O2 cell predictions use Taylor expansion (gain + rate&times;&Delta;t + &frac12;&times;accel&times;&Delta;t&sup2;) from the knee point,
-    displayed as running median of last 5 weekly predictions &mdash; validated to within 2&ndash;4 weeks of actual swap.
-    &ldquo;Order by&rdquo; dates assume 2-week part lead time.
-    In &ldquo;Part Replaced&rdquo; mode, the system builds a new baseline before making predictions.
-    Manufacturer expected lifespans are used as priors until observed data is sufficient.
+  <div id="forecastMethodText" style="font-size:11px; color:#64748b; margin-top:16px; padding:10px 12px; background:#0d1321; border-radius:6px; border:1px solid #1e293b;">
   </div>
 </div>
 
@@ -1870,12 +1862,31 @@ document.querySelectorAll('#rangeButtons .range-btn').forEach(btn => {
     });
   }
 
+  const methodTexts = {
+    umbilical: '<strong style="color:#94a3b8;">How predictions work:</strong> ' +
+      'Predictions trigger when the 8-week trailing average flow drops below 115 ml/min (4% off the 120 reference). ' +
+      'A linear fit on all post-trigger data extrapolates to the 86 ml/min warning threshold, ' +
+      'displayed as a running median of the last 5 weekly predictions. ' +
+      'Validated to within 2\u20134 weeks of actual threshold crossing across 2 degradation cycles.',
+    cell: '<strong style="color:#94a3b8;">How predictions work:</strong> ' +
+      'The knee point is detected when both the drift rate (1st derivative) and acceleration (2nd derivative) ' +
+      'are consistently positive for 4 weeks. From the knee point, a Taylor expansion ' +
+      '<code style="background:#1e293b;padding:1px 4px;border-radius:2px;">g(t+\u0394t) \u2248 g + g\u2032\u00b7\u0394t + \u00bdg\u2033\u00b7\u0394t\u00b2</code> ' +
+      'predicts when gain reaches the 28.2 soft limit, displayed as a running median of the last 5 weekly predictions. ' +
+      'Validated to within 2\u20134 weeks of actual cell swap.'
+  };
+
+  function updateMethodText() {
+    document.getElementById('forecastMethodText').innerHTML = methodTexts[activeComponent];
+  }
+
   document.getElementById('btnCompUmb').addEventListener('click', () => {
     document.getElementById('btnCompUmb').classList.add('active');
     document.getElementById('btnCompCell').classList.remove('active');
     activeComponent = 'umbilical';
     setSliderRange();
     renderActive();
+    updateMethodText();
   });
   document.getElementById('btnCompCell').addEventListener('click', () => {
     document.getElementById('btnCompCell').classList.add('active');
@@ -1883,6 +1894,7 @@ document.querySelectorAll('#rangeButtons .range-btn').forEach(btn => {
     activeComponent = 'cell';
     setSliderRange();
     renderActive();
+    updateMethodText();
   });
 
   document.getElementById('btnDegrading').addEventListener('click', () => {
@@ -1907,6 +1919,7 @@ document.querySelectorAll('#rangeButtons .range-btn').forEach(btn => {
   setSliderRange();
   renderActive();
   renderReplacedView();
+  updateMethodText();
 })();
 
 // ─── Position timeline nodes ──────────────────────────────────────────────────

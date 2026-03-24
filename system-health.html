@@ -94,6 +94,13 @@ body { background:#0a0f1a; color:#e2e8f0; font-family:'SF Mono','Fira Code','Con
 }
 .range-btn:hover { border-color:#60a5fa; color:#cbd5e1; }
 .range-btn.active { background:#1e3a5f; border-color:#60a5fa; color:#60a5fa; }
+.scenario-btn {
+  background:#1e293b; border:1px solid #334155; color:#94a3b8; padding:5px 14px;
+  border-radius:6px; font-size:11px; font-family:inherit; cursor:pointer;
+  letter-spacing:0.5px; transition: all 0.15s;
+}
+.scenario-btn:hover { border-color:#60a5fa; color:#cbd5e1; }
+.scenario-btn.active { background:#1e3a5f; border-color:#60a5fa; color:#60a5fa; }
 
 @media (max-width:900px) {
   .health-grid { grid-template-columns:repeat(2,1fr); }
@@ -129,9 +136,9 @@ body { background:#0a0f1a; color:#e2e8f0; font-family:'SF Mono','Fira Code','Con
 <!-- Scenario Toggle -->
 <div id="scenarioToggle" style="margin-bottom:16px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
   <span style="color:#94a3b8; font-size:12px; margin-right:8px;">View as of:</span>
-  <button class="range-btn scenario-btn" data-scenario="o2aging">O2 Cell Aging (Apr 2023)</button>
-  <button class="range-btn scenario-btn" data-scenario="umbfailing">Umbilical Failing (Jan 2026)</button>
-  <button class="range-btn scenario-btn active" data-scenario="current">Current / Nominal (Mar 2026)</button>
+  <button class="scenario-btn" data-scenario="o2aging">O2 Cell Aging (Apr 2023)</button>
+  <button class="scenario-btn" data-scenario="umbfailing">Umbilical Failing (Jan 2026)</button>
+  <button class="scenario-btn active" data-scenario="current">Current / Nominal (Mar 2026)</button>
 </div>
 
 <!-- Component Health Cards -->

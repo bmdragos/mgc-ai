@@ -1902,14 +1902,17 @@ document.querySelectorAll('#rangeButtons .range-btn').forEach(btn => {
     document.getElementById('btnReplaced').classList.remove('active');
     document.getElementById('viewDegrading').style.display = '';
     document.getElementById('viewReplaced').style.display = 'none';
+    document.getElementById('forecastMethodText').style.display = '';
     document.getElementById('forecastSub').textContent = 'What the system would have told you';
     renderActive();
+    updateMethodText();
   });
   document.getElementById('btnReplaced').addEventListener('click', () => {
     document.getElementById('btnReplaced').classList.add('active');
     document.getElementById('btnDegrading').classList.remove('active');
     document.getElementById('viewReplaced').style.display = '';
     document.getElementById('viewDegrading').style.display = 'none';
+    document.getElementById('forecastMethodText').style.display = 'none';
     document.getElementById('forecastSub').textContent = 'Current component status';
     renderReplacedView();
   });

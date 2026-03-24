@@ -933,10 +933,10 @@ function buildFlowPhaseChart(range) {
 // Initialize with Device 2 view
 buildFlowPhaseChart('dev2');
 
-// Wire up toggle buttons
-document.querySelectorAll('.range-btn').forEach(btn => {
+// Wire up flow chart toggle buttons (scoped to #rangeButtons container)
+document.querySelectorAll('#rangeButtons .range-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#rangeButtons .range-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     buildFlowPhaseChart(btn.dataset.range);
   });

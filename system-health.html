@@ -618,9 +618,16 @@ function calcO2CellHealthAt(devData, cutoffDate) {
     }
   }
 
-  const last5 = devData.slice(-5);
-  const currentGain = mean(last5.map(r => r.o2Gain));
-  const currentPD = mean(last5.map(r => r.o2PhaseDelay));
+  // Detect flow swap (same logic as sample line) — use post-swap data for current readings
+  let effectiveData = devData.slice(-5);
+  for (let i = devData.length - 1; i >= 1; i--) {
+    if (devData[i].sampleFlow - devData[i-1].sampleFlow > 20) {
+      effectiveData = devData.slice(i);
+      break;
+    }
+  }
+  const currentGain = mean(effectiveData.map(r => r.o2Gain));
+  const currentPD = mean(effectiveData.map(r => r.o2PhaseDelay));
   const sign = driftPerMonth >= 0 ? '+' : '';
 
   return {

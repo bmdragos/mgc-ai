@@ -694,8 +694,15 @@ function calcSampleLineHealthAt(devData, cutoffDate) {
   }
 
   const sign = trendPerMonth >= 0 ? '+' : '';
-  let statusMetric = 'Cycle ' + (devData[devData.length-1].umbCycle || '?');
-  if (swapDetected) statusMetric = 'Umbilical swapped ' + devData[devData.length-1].time.slice(5,10).replace('-','/');
+
+  // Compute baseline from first 60 days of current umbilical cycle
+  const cycleNum = devData[devData.length-1].umbCycle;
+  const cycleData = devData.filter(r => r.umbCycle === cycleNum);
+  const cycleStart = new Date(cycleData[0].time).getTime();
+  const baselineEnd = cycleStart + 60 * 86400000;
+  const baselineFlows = cycleData.filter(r => new Date(r.time).getTime() <= baselineEnd).map(r => r.sampleFlow);
+  const baselineFlow = baselineFlows.length >= 3 ? mean(baselineFlows) : 120;
+  const pctOfBaseline = baselineFlow > 0 ? Math.round((veryLastFlow / baselineFlow) * 100) : 100;
 
   return {
     title: 'Sample Line',
@@ -703,7 +710,7 @@ function calcSampleLineHealthAt(devData, cutoffDate) {
     metrics: [
       { label:'Current Flow', value: veryLastFlow.toFixed(1) + ' ml/min' },
       { label:'Trend (90d)', value: sign + trendPerMonth.toFixed(1) + ' ml/min/mo' },
-      { label:'Status', value: statusMetric }
+      { label:'vs Baseline', value: pctOfBaseline + '%' }
     ]
   };
 }

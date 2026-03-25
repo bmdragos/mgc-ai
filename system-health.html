@@ -1499,9 +1499,9 @@ document.querySelectorAll('#rangeButtons .range-btn').forEach(btn => {
       const diagColor = diagnosis.includes('Flow restriction') ? '#60a5fa' : diagnosis.includes('aging') ? '#fbbf24' : '#34d399';
       html += '<div style="font-size:12px; color:#94a3b8; padding:10px 12px; background:#0d1321; border-radius:6px; border:1px solid #1e293b; margin-bottom:12px;">';
       html += '<strong style="color:#94a3b8;">Root cause:</strong> <span style="color:' + diagColor + ';">' + diagnosis + '</span>';
-      html += ' &nbsp;(flow <span style="font-size:13px;">&Delta;</span>' + flowDrop.toFixed(0) + ' ml/min from baseline';
+      html += ' &nbsp;(flow down ' + flowDrop.toFixed(0) + ' ml/min from baseline';
       if (isSignificantAging) {
-        html += ', gain <span style="font-size:13px;">&Delta;</span>' + (gainTrend >= 0 ? '+' : '') + gainTrend.toFixed(1);
+        html += ', gain up ' + gainTrend.toFixed(1) + '/month';
       }
       html += ')';
       html += '</div>';

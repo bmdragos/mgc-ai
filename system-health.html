@@ -86,6 +86,9 @@ body { background:#0a0f1a; color:#e2e8f0; font-family:'SF Mono','Fira Code','Con
 .missed-window { background:rgba(248,113,113,0.08); border:1px solid rgba(248,113,113,0.2); border-radius:8px; padding:12px 16px; margin-top:16px; font-size:12px; color:#fca5a5; line-height:1.6; }
 .missed-window strong { color:#f87171; }
 
+/* Forecast metric cards */
+.forecast-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+
 /* Range toggle buttons */
 .range-btn {
   background:#1e293b; border:1px solid #334155; color:#94a3b8; padding:5px 14px;
@@ -126,6 +129,7 @@ body { background:#0a0f1a; color:#e2e8f0; font-family:'SF Mono','Fira Code','Con
   .scenario-btn, .range-btn { font-size:10px; padding:4px 10px; }
   #scenarioToggle { gap:4px; }
   #rangeButtons { gap:2px; }
+  .forecast-cards { grid-template-columns:repeat(2,1fr); }
 }
 </style>
 </head>
@@ -1421,7 +1425,7 @@ document.querySelectorAll('#rangeButtons .range-btn').forEach(btn => {
     html += '</div>';
 
     // Cards row
-    html += '<div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px;">';
+    html += '<div class="forecast-cards">';
 
     // Current flow
     const flowColor = currentFlow >= 100 ? '#34d399' : currentFlow >= 90 ? '#fbbf24' : currentFlow >= 86 ? '#f59e0b' : '#f87171';
@@ -1736,7 +1740,7 @@ document.querySelectorAll('#rangeButtons .range-btn').forEach(btn => {
     html += '<div style="padding:14px 16px; background:#0a0f1a; border-radius:8px; border-left:4px solid ' + actColor + '; margin-bottom:16px;">';
     html += '<span style="color:' + actColor + '; font-weight:700; font-size:13px;">' + actText + '</span></div>';
 
-    html += '<div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px;">';
+    html += '<div class="forecast-cards">';
 
     // Current gain
     const gainColor = currentGain < 20 ? '#34d399' : currentGain < 25 ? '#fbbf24' : currentGain < CELL_SOFT_LIMIT ? '#f59e0b' : '#f87171';

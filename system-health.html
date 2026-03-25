@@ -696,11 +696,12 @@ function calcSampleLineHealthAt(devData, cutoffDate) {
   const sign = trendPerMonth >= 0 ? '+' : '';
 
   // Compute baseline from first 60 days of current umbilical cycle
+  // Use ALL data for the cycle (across both devices) since umbilical transfers between devices
   const cycleNum = devData[devData.length-1].umbCycle;
-  const cycleData = devData.filter(r => r.umbCycle === cycleNum);
-  const cycleStart = new Date(cycleData[0].time).getTime();
+  const allCycleData = CAL_DATA.filter(r => r.umbCycle === cycleNum);
+  const cycleStart = allCycleData.length ? new Date(allCycleData[0].time).getTime() : 0;
   const baselineEnd = cycleStart + 60 * 86400000;
-  const baselineFlows = cycleData.filter(r => new Date(r.time).getTime() <= baselineEnd).map(r => r.sampleFlow);
+  const baselineFlows = allCycleData.filter(r => new Date(r.time).getTime() <= baselineEnd).map(r => r.sampleFlow);
   const baselineFlow = baselineFlows.length >= 3 ? mean(baselineFlows) : 120;
   const pctOfBaseline = baselineFlow > 0 ? Math.round((veryLastFlow / baselineFlow) * 100) : 100;
 

@@ -1866,9 +1866,14 @@ document.querySelectorAll('#rangeButtons .range-btn').forEach(btn => {
     // Render milestones
     const track = document.getElementById('sliderMilestones');
     let html = '';
-    milestones.forEach(m => {
+    milestones.forEach((m, idx) => {
       const pct = (m.week / maxW) * 100;
-      html += '<div style="position:absolute; left:' + pct + '%; transform:translateX(-50%); text-align:center; cursor:pointer;" data-week="' + m.week + '">';
+      const isFirst = idx === 0;
+      const isLast = idx === milestones.length - 1;
+      const align = isFirst ? 'left:' + pct + '%; text-align:left;' :
+                    isLast ? 'left:' + pct + '%; transform:translateX(-100%); text-align:right;' :
+                    'left:' + pct + '%; transform:translateX(-50%); text-align:center;';
+      html += '<div style="position:absolute; ' + align + ' cursor:pointer;" data-week="' + m.week + '">';
       html += '<div style="width:2px; height:8px; background:' + m.color + '; margin:0 auto;"></div>';
       html += '<div style="font-size:9px; color:' + m.color + '; white-space:nowrap; margin-top:1px;">' + m.label + '</div>';
       html += '</div>';

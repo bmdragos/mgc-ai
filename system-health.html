@@ -565,7 +565,7 @@ function computeScenarioHealth(scenarioKey) {
   const analyzerHealth = calcAnalyzerHealthAt(devData);
   const overallHealth = calcOverallHealthAt(o2Health.score, flowHealth.score, analyzerHealth.score);
 
-  return [o2Health, flowHealth, analyzerHealth, overallHealth];
+  return [flowHealth, o2Health, analyzerHealth, overallHealth];
 }
 
 function buildDefaultCards() {
@@ -796,9 +796,6 @@ function renderHealthCards(cards) {
     <div style="flex:1;">
       <div style="font-size:11px; text-transform:uppercase; letter-spacing:1.5px; color:#64748b; margin-bottom:4px;">System Health</div>
       <div style="font-size:16px; font-weight:700; color:${overall.statusClass === 'green' ? '#34d399' : overall.statusClass === 'yellow' ? '#fbbf24' : overall.statusClass === 'orange' ? '#f59e0b' : '#f87171'};">${overall.statusText}</div>
-      <div style="font-size:11px; color:#64748b; margin-top:4px;">
-        ${overall.metrics.map(m => `<span style="margin-right:16px;">${m.label}: <strong style="color:#e2e8f0;">${m.value}</strong></span>`).join('')}
-      </div>
     </div>
   `;
 

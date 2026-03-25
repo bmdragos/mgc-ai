@@ -1702,7 +1702,9 @@ document.querySelectorAll('#rangeButtons .range-btn').forEach(btn => {
         : 'Stable — ' + monthsIn + ' months in service. Prior: expect 30–40 month life.';
     } else if (currentGain < 25) {
       act = 2; actColor = '#fbbf24';
-      actText = 'Cell aging detected — ensure replacement cell is on hand';
+      actText = kneeDetected && confPct >= 25
+        ? 'Cell aging confirmed — order replacement cell'
+        : 'Cell aging detected — monitoring for knee point';
     } else if (currentGain < CELL_SOFT_LIMIT) {
       act = 3; actColor = '#f59e0b';
       actText = 'Gain approaching soft limit (' + CELL_SOFT_LIMIT + ') — schedule replacement';

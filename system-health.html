@@ -1797,7 +1797,6 @@ document.querySelectorAll('#rangeButtons .range-btn').forEach(btn => {
     html += '<div style="font-size:11px; color:#64748b;">';
     html += 'Week ' + viewWeek + ' of ' + cellTotalWeeks;
     html += ' &nbsp;|&nbsp; ' + n + ' calibrations';
-    html += ' &nbsp;|&nbsp; BOCPD: week ' + CELL_TRANSITION_WEEK;
     html += ' &nbsp;|&nbsp; Knee point: week ' + (CELL_KNEE_WEEK != null ? CELL_KNEE_WEEK : '—');
     if (kneeDetected) html += ' &nbsp;|&nbsp; Taylor + running median, post-knee week ' + postKneeWeeks;
     html += ' &nbsp;|&nbsp; Actual cell swap: Oct 16, 2023';
@@ -1837,7 +1836,6 @@ document.querySelectorAll('#rangeButtons .range-btn').forEach(btn => {
       milestones = [
         { week: 0, label: 'Install', color: '#34d399' },
         { week: 8, label: 'Baseline', color: '#60a5fa' },
-        { week: CELL_TRANSITION_WEEK, label: 'BOCPD', color: '#fbbf24' },
         { week: CELL_KNEE_WEEK || CELL_TRANSITION_WEEK + 10, label: 'Knee', color: '#f59e0b' },
         { week: cellTotalWeeks, label: 'Swap', color: '#f87171' },
       ];

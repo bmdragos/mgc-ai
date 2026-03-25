@@ -107,7 +107,25 @@ body { background:#0a0f1a; color:#e2e8f0; font-family:'SF Mono','Fira Code','Con
   .comparison { grid-template-columns:1fr; }
 }
 @media (max-width:600px) {
+  .container { padding:12px; }
+  .header h1 { font-size:18px; letter-spacing:1px; }
+  .header .subtitle { font-size:11px; }
+  .header { flex-wrap:wrap; gap:8px; }
+  .device-bar { flex-wrap:wrap; gap:12px; font-size:11px; }
+  .tab-nav a { padding:8px 12px; font-size:10px; letter-spacing:1px; }
   .health-grid { grid-template-columns:1fr; }
+  .health-card { padding:14px; }
+  .health-card .card-body { gap:12px; }
+  .section { padding:14px; }
+  .section h2 { font-size:12px; letter-spacing:1px; }
+  .chart-container { height:240px; }
+  .chart-container.tall { height:280px; }
+  .comparison-side { padding:14px; }
+  .stat-row { flex-direction:column; gap:4px; }
+  .stat-row .stat-value { text-align:left; }
+  .scenario-btn, .range-btn { font-size:10px; padding:4px 10px; }
+  #scenarioToggle { gap:4px; }
+  #rangeButtons { gap:2px; }
 }
 </style>
 </head>

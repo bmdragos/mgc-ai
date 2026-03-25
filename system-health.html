@@ -619,16 +619,19 @@ function calcO2CellHealthAt(devData, cutoffDate) {
     }
   }
 
-  // Detect flow swap (same logic as sample line) — use post-swap data for current readings
-  let effectiveData = devData.slice(-5);
+  // For O2 cell readings, use the last 5 calibrations directly
+  // (Umbilical swap affects flow/PD readings but gain reflects cell state regardless)
+  // Detect O2 CELL swap: gain drops > 5 between consecutive cals
+  let effectiveO2 = devData.slice(-5);
   for (let i = devData.length - 1; i >= 1; i--) {
-    if (devData[i].sampleFlow - devData[i-1].sampleFlow > 20) {
-      effectiveData = devData.slice(i);
+    if (devData[i-1].o2Gain - devData[i].o2Gain > 5) {
+      effectiveO2 = devData.slice(i);
       break;
     }
   }
-  const currentGain = mean(effectiveData.map(r => r.o2Gain));
-  const currentPD = mean(effectiveData.map(r => r.o2PhaseDelay));
+  if (effectiveO2.length < 1) effectiveO2 = devData.slice(-5);
+  const currentGain = mean(effectiveO2.slice(-5).map(r => r.o2Gain));
+  const currentPD = mean(effectiveO2.slice(-5).map(r => r.o2PhaseDelay));
   const sign = driftPerMonth >= 0 ? '+' : '';
 
   return {
